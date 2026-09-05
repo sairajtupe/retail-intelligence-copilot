@@ -1,0 +1,20 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+.env.local
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Generated data (regenerate with: python app.py)
+data/
+index/
+
+*.db
+*.db-wal
+*.db-shm
+
+opencode.json

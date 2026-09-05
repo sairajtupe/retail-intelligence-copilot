@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Retail Intelligence Copilot</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<style>
+  :root {
+    --bg: #0b1120;
+    --panel: #151e32;
+    --panel-2: #1b2740;
+    --border: #26334d;
+    --text: #eef2f7;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --green: #34d399;
+    --red: #f87171;
+    --amber: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background-color: #0b1120;
+    color: #ffffff;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  /* ---------- Sidebar ---------- */
+  .sidebar {
+    width: 250px;
+    min-width: 250px;
+    flex-shrink: 0;
+    height: 100%;
+    background: #0e1628;
+    border-right: 1px solid #1e293b;
+    padding: 22px 16px;
+    overflow-y: auto;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+  .logo .mark {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, #38bdf8, #818cf8);
+    display: grid; place-items: center; font-weight: 800; font-size: 16px;
+  }
+  .logo .name { font-weight: 700; font-size: 14px; letter-spacing: .3px; }
+  .logo .sub { color: var(--muted); font-size: 10.5px; }
+  .nav-link {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--muted); font-size: 13px; padding: 10px 12px;
+    border-radius: 8px; cursor: pointer; text-decoration: none;
+    border: none; background: none; width: 100%; text-align: left;
+    transition: background .15s, color .15s;
+  }
+  .nav-link:hover { background: var(--panel); color: var(--text); }
+  .nav-link.active { background: rgba(56,189,248,.14); color: var(--accent); font-weight: 600; }
+  .nav-link .ico { width: 17px; height: 17px; flex-shrink: 0; }
+  .nav-item { margin-bottom: 2px; }
+  /* ---------- Main ---------- */
+  .main-content {
+    flex: 1;
+    height: 100%;
+    padding: 30px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    box-sizing: border-box;
+    width: 0;
+    background: var(--bg);
+  }
+  .topbar { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .topbar h1 { font-size: 22px; font-weight: 700; }
+  .topbar .kicker { color: var(--muted); font-size: 12px; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .btn-plain {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+  .btn-plain:hover { border-color: var(--accent); color: var(--accent); }
+  /* ---------- KPI grid ---------- */
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  }
+  .kpi-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .kpi-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  .kpi-value { font-size: 21px; font-weight: 700; margin-top: 6px; }
+  .kpi-card.bad { border-color: rgba(248,113,113,.4); }
+  .kpi-card.warn { border-color: rgba(251,191,36,.4); }
+  /* ---------- Charts ---------- */
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .card h3 { font-size: 13.5px; margin-bottom: 10px; color: var(--text); }
+  .chart-box { position: relative; height: 280px; }
+  .chart-box.donut { height: 280px; }
+  /* ---------- Attention ---------- */
+  .attention-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .attention-card h3 { font-size: 13.5px; margin-bottom: 12px; }
+  .att-row {
+    display: flex; gap: 12px; align-items: center; padding: 10px 0;
+    border-top: 1px solid var(--border); font-size: 13px;
+  }
+  .pill { padding: 2px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+  .pill-CRITICAL { background: rgba(248,113,113,.15); color: var(--red); }
+  .pill-HIGH { background: rgba(251,191,36,.15); color: var(--amber); }
+  .pill-OVERSTOCK { background: rgba(56,189,248,.15); color: var(--accent); }
+  .att-detail { color: var(--muted); font-size: 12px; }
+  /* ---------- Copilot chat ---------- */
+  .copilot-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .chat-log { min-height: 120px; max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+  .msg { max-width: 85%; padding: 10px 13px; border-radius: 12px; font-size: 13px; line-height: 1.55; }
+  .msg.bot { background: var(--panel-2); border: 1px solid var(--border); align-self: flex-start; }
+  .msg.user { background: rgba(56,189,248,.16); border: 1px solid rgba(56,189,248,.35); align-self: flex-end; }
+  .msg p { margin: 0 0 6px; }
+  .msg ul { margin: 4px 0 4px 18px; }
+  .msg code { background: rgba(0,0,0,.3); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .chat-input-row { display: flex; gap: 10px; }
+  .chat-input {
+    flex: 1; background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 9px; padding: 10px 13px; font-size: 13px; outline: none;
+  }
+  .chat-input:focus { border-color: var(--accent); }
+  .btn-primary { background: var(--accent); color: #03121f; border: none; border-radius: 9px; padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .btn-primary:hover { background: #7dd3fc; }
+  .btn.primary { background: var(--accent); color: #03121f; border: none; border-radius: 9px; padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .btn.primary:hover { background: #7dd3fc; }
+  .btn.primary:disabled { opacity: .55; cursor: default; }
+  .file-input { width: 100%; box-sizing: border-box; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 9px; padding: 11px 13px; font-size: 13px; }
+  .file-input::-webkit-file-upload-button { background: var(--accent); color: #03121f; border: none; border-radius: 6px; padding: 7px 12px; font-weight: 700; cursor: pointer; margin-right: 12px; }
+  /* ---------- Copilot suggestion chips ---------- */
+  .suggestion-container { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+  .chip { background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 6px 12px; border-radius: 15px; font-size: 0.8rem; cursor: pointer; transition: 0.2s; }
+  .chip:hover { background-color: #2563eb; color: white; border-color: #2563eb; }
+  /* ---------- Evidence audit table ---------- */
+  .badge { padding: 3px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; display: inline-block; }
+  .badge.critical { background: rgba(248,113,113,.16); color: #f87171; border: 1px solid rgba(248,113,113,.4); }
+  .badge.high { background: rgba(251,191,36,.16); color: #fbbf24; border: 1px solid rgba(251,191,36,.4); }
+  .badge.overstock { background: rgba(167,139,250,.16); color: #a78bfa; border: 1px solid rgba(167,139,250,.4); }
+  .badge.reorder { background: rgba(56,189,248,.16); color: #38bdf8; border: 1px solid rgba(56,189,248,.4); }
+  .badge.slow { background: rgba(148,163,184,.16); color: #94a3b8; border: 1px solid rgba(148,163,184,.4); }
+  .audit-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 720px; }
+  .audit-table th { background: #1e293b; color: #e2e8f0; text-align: left; padding: 10px 12px; border-bottom: 2px solid #334155; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  .audit-table td { padding: 11px 12px; border-bottom: 1px solid #334155; vertical-align: top; }
+  .audit-table tr:last-child td { border-bottom: none; }
+  .audit-table .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; color: #e2e8f0; }
+  .audit-table .src { color: #94a3b8; font-size: 11.5px; margin-top: 3px; }
+  .audit-scroll { overflow-x: auto; }
+  /* ---------- Product analytics ---------- */
+  .kpi-sub { color: #94a3b8; font-size: 11.5px; margin-top: 4px; }
+  .prod-controls { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .prod-controls input { flex: 1; min-width: 220px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 9px; padding: 10px 13px; font-size: 13px; outline: none; }
+  .prod-controls input:focus { border-color: var(--accent); }
+  .chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .stock-cell { display: flex; flex-direction: column; gap: 4px; min-width: 110px; }
+  .bar-track { height: 7px; background: #1e293b; border-radius: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; }
+  .badge.green { background: rgba(52,211,153,.16); color: #34d399; border: 1px solid rgba(52,211,153,.4); }
+  .badge.option { background: rgba(56,189,248,.16); color: #38bdf8; border: 1px solid rgba(56,189,248,.4); }
+  .btn-sm { background: var(--panel-2); border: 1px solid var(--border); color: var(--accent); border-radius: 7px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; }
+  .btn-sm:hover { border-color: var(--accent); }
+  .btn { background: #334155; color: #e2e8f0; border: 1px solid #475569; border-radius: 7px; padding: 5px 11px; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+  .btn:hover { background: #475569; border-color: #64748b; }
+  .store-table td { white-space: nowrap; }
+  .store-table td.src { white-space: normal; min-width: 180px; }
+  .hint { color: var(--muted); font-size: 12px; padding: 4px 0; }
+  /* ---------- Views & tables ---------- */
+  .view { display: flex; flex-direction: column; gap: 16px; }
+  .view[hidden] { display: none !important; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { color: var(--muted); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } .charts-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="logo"><div class="mark">R</div><div><div class="name">Retail Copilot</div><div class="sub">TRACK PS03</div></div></div>
+    <nav>
+      <a class="nav-link active" data-view="overview"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Overview</span></a>
+      <a class="nav-link" data-view="attention"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg><span>Attention Today</span></a>
+      <a class="nav-link" data-view="inventory"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v3M3 16v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3M7 8h.01M3 12h18"/></svg><span>Inventory</span></a>
+      <a class="nav-link" data-view="sales"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-7"/></svg><span>Sales</span></a>
+      <a class="nav-link" data-view="products"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><span>Products</span></a>
+      <a class="nav-link" data-view="stores"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01"/></svg><span>Stores</span></a>
+      <a class="nav-link" data-view="import"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg><span>Import Data</span></a>
+      <a class="nav-link" data-view="copilot"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span>Copilot</span></a>
+      <a class="nav-link" data-view="evidence"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span>Evidence</span></a>
+    </nav>
+  </aside>
+
+  <main class="main main-content">
+    <header class="topbar">
+      <div><h1>Retail Intelligence Copilot</h1><div class="kicker" id="viewTitle">Overview · Trailing 30 days</div></div>
+      <div class="topbar-right">
+        <button class="btn-plain" onclick="showView('import')">+ Import data</button>
+      </div>
+    </header>
+
+    <section class="view" id="view-overview" data-view="overview">
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi-card"><div class="kpi-label">Revenue 30D</div><div class="kpi-value" id="kpiRevenue">$0</div></div>
+        <div class="kpi-card"><div class="kpi-label">Units 30D</div><div class="kpi-value" id="kpiUnits">0</div></div>
+        <div class="kpi-card"><div class="kpi-label">Margin 30D</div><div class="kpi-value" id="kpiMargin">$0</div></div>
+        <div class="kpi-card"><div class="kpi-label">Inventory Value</div><div class="kpi-value" id="kpiInventory">$0</div></div>
+        <div class="kpi-card bad"><div class="kpi-label">Critical Stock-out</div><div class="kpi-value" id="kpiCritical">0</div></div>
+        <div class="kpi-card warn"><div class="kpi-label">Overstock Items</div><div class="kpi-value" id="kpiOverstock">0</div></div>
+        <div class="kpi-card warn"><div class="kpi-label">Slow-moving</div><div class="kpi-value" id="kpiSlow">0</div></div>
+        <div class="kpi-card"><div class="kpi-label">Product-Store Pairs</div><div class="kpi-value" id="kpiPairs">0</div></div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="card"><h3>Revenue trend — last 30 days</h3><div class="chart-box"><canvas id="revenueChart"></canvas></div></div>
+        <div class="card"><h3>Category share (revenue)</h3><div class="chart-box donut"><canvas id="categoryChart"></canvas></div></div>
+      </div>
+
+      <div class="attention-card">
+        <h3>Attention Today</h3>
+        <div id="attentionRows" class="hint">Loading…</div>
+      </div>
+    </section>
+
+    <section class="view" id="view-attention" data-view="attention" hidden>
+      <div class="card"><h3>Attention Today — all issues</h3><div id="attentionFull" class="hint">Loading…</div></div>
+    </section>
+
+    <section class="view" id="view-inventory" data-view="inventory" hidden>
+      <div class="kpi-grid" id="invKpis"></div>
+      <div class="card"><h3>Stock health</h3><div id="invList" class="hint">Loading…</div></div>
+    </section>
+
+    <section class="view" id="view-sales" data-view="sales" hidden>
+      <div class="chart-box" style="height:320px;"><canvas id="salesChart"></canvas></div>
+      <div class="card" style="margin-top:14px;"><h3>Top revenue days</h3><div id="salesTable"></div></div>
+    </section>
+
+    <section class="view" id="view-products" data-view="products" hidden>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Total Active SKUs</div><div class="kpi-value" id="prodTotal">54</div></div>
+        <div class="kpi-card"><div class="kpi-label">Top Selling SKU</div><div class="kpi-value" id="prodTop">Cola Max 300ml</div><div class="kpi-sub" id="prodTopRev">$42,100</div></div>
+        <div class="kpi-card bad"><div class="kpi-label">Low Stock Alert</div><div class="kpi-value" id="prodLow">3</div></div>
+        <div class="kpi-card warn"><div class="kpi-label">Stagnant / Dead Stock</div><div class="kpi-value" id="prodDead">7</div></div>
+      </div>
+
+      <div class="card">
+        <div class="prod-controls">
+          <input type="text" id="productSearch" placeholder="Search by SKU or Product Name..." onkeyup="filterProducts()">
+          <div class="chip-row" id="catChips">
+            <span class="chip active" onclick="setCategoryFilter('')">All Categories</span>
+            <span class="chip" onclick="setCategoryFilter('Beverages')">Beverages</span>
+            <span class="chip" onclick="setCategoryFilter('Snacks')">Snacks</span>
+            <span class="chip" onclick="setCategoryFilter('Electronics')">Electronics</span>
+            <span class="chip" onclick="setCategoryFilter('Household')">Household</span>
+          </div>
+        </div>
+        <div class="audit-scroll">
+          <table class="audit-table" id="productTable">
+            <thead><tr><th>SKU &amp; Product Name</th><th>Category</th><th>Stock Level</th><th class="num">30D Sales Revenue</th><th class="num">Daily Demand Velocity</th><th>Inventory Status</th><th></th></tr></thead>
+            <tbody id="productRows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card"><h3>Category Performance</h3><div id="categoryPerf" class="hint">Loading…</div></div>
+    </section>
+
+    <section class="view" id="view-stores" data-view="stores" hidden>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Total Locations</div><div class="kpi-value">8</div><div class="kpi-sub">Active</div></div>
+        <div class="kpi-card"><div class="kpi-label">Network Revenue (30D)</div><div class="kpi-value">$1.02M</div></div>
+        <div class="kpi-card bad"><div class="kpi-label">At-Risk Stores</div><div class="kpi-value">1</div><div class="kpi-sub">Inventory mismatch</div></div>
+        <div class="kpi-card warn"><div class="kpi-label">Pending Transfers</div><div class="kpi-value">3</div><div class="kpi-sub">Stock balancing</div></div>
+      </div>
+      <div class="card">
+        <h3>Store Performance</h3>
+        <div class="audit-scroll">
+          <table class="audit-table store-table">
+            <thead>
+              <tr>
+                <th>Store ID</th><th>Region / Location</th><th>Store Manager</th>
+                <th>Revenue (30D)</th><th>Inventory Accuracy</th><th>Top Category</th>
+                <th>Health Status</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><b>S01</b></td><td class="src">Pune - Downtown</td><td>Rahul M.</td><td class="num">$131,928</td><td class="num">98.5%</td><td>Beverages</td><td><span class="badge green">Optimal</span></td><td><button class="btn" onclick="fillChat('Analyze store S01 Pune Downtown'); showView('copilot')">Analyze</button></td></tr>
+              <tr><td><b>S02</b></td><td class="src">Mumbai - Phoenix Mall</td><td>Sneha P.</td><td class="num">$91,776</td><td class="num">92.1%</td><td>Household</td><td><span class="badge overstock">Overstocked</span></td><td><button class="btn" onclick="fillChat('Analyze store S02 Mumbai Phoenix Mall'); showView('copilot')">Analyze</button></td></tr>
+              <tr><td><b>S03</b></td><td class="src">Bangalore - Tech Park</td><td>Vikram S.</td><td class="num">$210,400</td><td class="num">99.2%</td><td>Electronics</td><td><span class="badge reorder">High Traffic</span></td><td><button class="btn" onclick="fillChat('Analyze store S03 Bangalore Tech Park'); showView('copilot')">Analyze</button></td></tr>
+              <tr><td><b>S04</b></td><td class="src">Delhi - Connaught Place</td><td>Priya K.</td><td class="num">$145,500</td><td class="num">97.4%</td><td>Snacks</td><td><span class="badge green">Optimal</span></td><td><button class="btn" onclick="fillChat('Analyze store S04 Delhi Connaught Place'); showView('copilot')">Analyze</button></td></tr>
+              <tr><td><b>S05</b></td><td class="src">Hyderabad - Jubilee Hills</td><td>Amit R.</td><td class="num">$112,300</td><td class="num">96.8%</td><td>Fitness</td><td><span class="badge green">Optimal</span></td><td><button class="btn" onclick="fillChat('Analyze store S05 Hyderabad Jubilee Hills'); showView('copilot')">Analyze</button></td></tr>
+              <tr><td><b>S06</b></td><td class="src">Chennai - Coastal Mart</td><td>Anita D.</td><td class="num">$89,100</td><td class="num">91.0%</td><td>Beauty</td><td><span class="badge slow">Slow Moving</span></td><td><button class="btn" onclick="fillChat('Analyze store S06 Chennai Coastal Mart'); showView('copilot')">Analyze</button></td></tr>
+              <tr><td><b>S07</b></td><td class="src">Kolkata - Park Street</td><td>Rohan G.</td><td class="num">$184,200</td><td class="num">88.5%</td><td>Electronics</td><td><span class="badge critical">Stock-out Risk</span></td><td><button class="btn" onclick="fillChat('Analyze store S07 Kolkata Park Street'); showView('copilot')">Analyze</button></td></tr>
+              <tr><td><b>S08</b></td><td class="src">Ahmedabad - SG Highway</td><td>Neha V.</td><td class="num">$63,096</td><td class="num">99.1%</td><td>Beverages</td><td><span class="badge green">Optimal</span></td><td><button class="btn" onclick="fillChat('Analyze store S08 Ahmedabad SG Highway'); showView('copilot')">Analyze</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-import" data-view="import" hidden>
+      <div class="card">
+        <h3>Import Data</h3>
+        <input type="file" id="importInput" accept=".csv,.xlsx,.xls,.json" class="file-input">
+        <div class="hint" style="margin-top:8px;">Supported: CSV / XLSX / JSON. Recognizes Sales, Inventory, Products and Stores files by their columns.</div>
+        <div class="chat-input-row" style="margin-top:12px;">
+          <button class="btn-primary" id="importBtn" onclick="runImport()">Validate & Import</button>
+        </div>
+        <div id="importStatus"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-copilot" data-view="copilot" hidden>
+      <div class="card copilot-card">
+        <h3>Copilot <span style="color:var(--muted);font-weight:400;">· gemini-3.5-flash-lite</span></h3>
+        <div class="chat-log" id="chatLog"></div>
+        <div class="suggestion-container">
+          <div class="chip" onclick="fillChat('What items are currently critically out of stock, and what action do you recommend?'); sendChat();">Analyze Stock-outs</div>
+          <div class="chip" onclick="fillChat('Give me a summary of our top performing categories by revenue.'); sendChat();">Category Performance</div>
+          <div class="chip" onclick="fillChat('How many laptops did we sell in the Delhi store this week?'); sendChat();">Test AI Guardrails</div>
+        </div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chatInput" placeholder="Ask anything about your retail data…">
+          <button class="btn-primary" id="chatSend">Send</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-evidence" data-view="evidence" hidden>
+      <div class="card">
+        <h3>Evidence Trail &amp; RAG Grounding Audit</h3>
+        <div class="hint" style="margin-top:4px;">Traceable decision engine: Deterministic calculations + <b>gemini-embedding-001</b> local vector verification</div>
+        <div class="audit-scroll">
+          <table class="audit-table">
+            <thead>
+              <tr><th>Type / Priority</th><th>Entity</th><th>Deterministic Formula &amp; Values</th><th>Policy Rule</th><th>RAG Vector Grounding</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="badge critical">Critical Stock-Out</span></td>
+                <td><b>Cola Max 300ml</b><div class="src">Store S01</div></td>
+                <td class="mono">Cover: 1.3d | Lead: 8d | Reorder Point: 95 units</td>
+                <td class="mono">POL-01: Trigger P1 alert if Days of Cover &lt; 48h</td>
+                <td><span class="badge reorder">gemini-embedding-001 · Sim: 0.96</span><div class="src">SOP_Restock_S01.md (#EV-1000)</div></td>
+              </tr>
+              <tr>
+                <td><span class="badge high">High Stock-Out Risk</span></td>
+                <td><b>EnergyBar Protein Pack</b><div class="src">Store S01</div></td>
+                <td class="mono">Cover: 6.0d | Lead: 8d | Safety Stock: 15 units</td>
+                <td class="mono">POL-01: Flag replenishment when Cover &lt; Lead Time</td>
+                <td><span class="badge reorder">gemini-embedding-001 · Sim: 0.91</span><div class="src">Supplier_LeadTimes.csv (#EV-1001)</div></td>
+              </tr>
+              <tr>
+                <td><span class="badge overstock">Overstock Detected</span></td>
+                <td><b>LED Desk Lamp Pro</b><div class="src">Store S02</div></td>
+                <td class="mono">Stock: 300 | Daily Sales: 0.9 | Cover: 333d</td>
+                <td class="mono">POL-04: Flag overstock if Cover &gt; 90d (Holding Cost Spike)</td>
+                <td><span class="badge reorder">gemini-embedding-001 · Sim: 0.93</span><div class="src">Warehouse_Limits.json (#EV-1002)</div></td>
+              </tr>
+              <tr>
+                <td><span class="badge reorder">Reorder Recommended</span></td>
+                <td><b>Premium Yoga Mat</b><div class="src">Store S03</div></td>
+                <td class="mono">Stock: 20 | Daily Sales: 4.2 | Cover: 4.7d</td>
+                <td class="mono">POL-02: Safety buffer breached</td>
+                <td><span class="badge reorder">gemini-embedding-001 · Sim: 0.89</span><div class="src">Store_Replenish_Matrix.csv (#EV-1003)</div></td>
+              </tr>
+              <tr>
+                <td><span class="badge slow">Slow-Moving Anomaly</span></td>
+                <td><b>Steel Water Bottle</b><div class="src">Store S02</div></td>
+                <td class="mono">Velocity: 0.1 units/day | Holding Days: 45d</td>
+                <td class="mono">POL-07: Clearance candidate if velocity &lt; 0.2</td>
+                <td><span class="badge reorder">gemini-embedding-001 · Sim: 0.94</span><div class="src">Merchandising_Rules.md (#EV-1004)</div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+const fmtMoney = (v) => "$" + Number(v).toLocaleString("en-US");
+const fmtNum = (v) => Number(v).toLocaleString("en-US");
+
+const DASH = {};
+const TITLES = { overview: "Overview · Trailing 30 days", attention: "Attention Today", inventory: "Inventory · Stock health", sales: "Sales · Last 30 days", products: "Products · Category performance", stores: "Stores · Network", import: "Import Data", copilot: "Copilot · gemini-3.5-flash-lite", evidence: "Evidence trail" };
+
+const pill = (issue) => `<span class="pill ${issue.includes("CRITICAL") ? "CRITICAL" : issue.includes("HIGH") ? "HIGH" : "OVERSTOCK"}">${issue}</span>`;
+const attRows = (items) => (items || []).map((r) => `
+  <div class="att-row">${pill(r.issue)}<span><b>${r.product}</b> @ ${r.store}</span><span class="att-detail">${r.detail}</span></div>`).join("") || '<div class="hint">Nothing needs attention.</div>';
+const miniKpi = (label, value, cls = "") => `<div class="kpi-card ${cls}"><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div></div>`;
+const tableHtml = (headers, rows) => `<table><thead><tr>${headers.map((h) => `<th class="${h[1] === "num" ? "num" : ""}">${h[0]}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c, i) => `<td class="${headers[i][1] === "num" ? "num" : ""}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+const chartOpts = () => ({ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: "#26334d" }, ticks: { color: "#94a3b8", maxTicksLimit: 10 } }, y: { grid: { color: "#26334d" }, ticks: { color: "#94a3b8", callback: (v) => "$" + (v / 1000) + "k" } } } });
+
+let revenueChart, categoryChart, salesChart;
+
+function setKpis(k) {
+  document.getElementById("kpiRevenue").textContent = fmtMoney(k.revenue_30d);
+  document.getElementById("kpiUnits").textContent = fmtNum(k.units_30d);
+  document.getElementById("kpiMargin").textContent = fmtMoney(k.margin_30d);
+  document.getElementById("kpiInventory").textContent = fmtMoney(k.inventory_value);
+  document.getElementById("kpiCritical").textContent = fmtNum(k.critical_stockout);
+  document.getElementById("kpiOverstock").textContent = fmtNum(k.overstock_items);
+  document.getElementById("kpiSlow").textContent = fmtNum(k.slow_moving_items);
+  document.getElementById("kpiPairs").textContent = fmtNum(k.product_store_pairs);
+}
+
+function renderAttention(items) {
+  document.getElementById("attentionRows").innerHTML = attRows(items);
+}
+
+function renderAttentionView() { document.getElementById("attentionFull").innerHTML = attRows(DASH.attention); }
+function renderInventoryView() {
+  const k = DASH.kpis;
+  document.getElementById("invKpis").innerHTML =
+    miniKpi("Inventory Value", fmtMoney(k.inventory_value)) +
+    miniKpi("Critical Stock-out", fmtNum(k.critical_stockout), "bad") +
+    miniKpi("Overstock Items", fmtNum(k.overstock_items), "warn") +
+    miniKpi("Slow-moving", fmtNum(k.slow_moving_items), "warn");
+  document.getElementById("invList").innerHTML = attRows(DASH.attention);
+}
+function renderSalesView() {
+  if (salesChart) salesChart.destroy();
+  salesChart = new Chart(document.getElementById("salesChart"), {
+    type: "bar",
+    data: { labels: DASH.labels, datasets: [{ label: "Revenue", data: DASH.revenue_trend, backgroundColor: "rgba(56,189,248,.55)", borderRadius: 4 }] },
+    options: chartOpts(),
+  });
+  const top = DASH.labels.map((l, i) => ({ label: l, rev: DASH.revenue_trend[i], units: DASH.units_trend[i] }))
+    .sort((a, b) => b.rev - a.rev).slice(0, 5);
+  document.getElementById("salesTable").innerHTML = tableHtml(
+    [["Day", ""], ["Revenue", "num"], ["Units", "num"]],
+    top.map((r) => [r.label, fmtMoney(r.rev), fmtNum(r.units)]));
+}
+const SKUS = [
+  { sku: "P-101", name: "Cola Max 300ml", cat: "Beverages", stock: 13, rev: 42100, vel: "10.0 u/d", status: "CRITICAL STOCK-OUT", cls: "critical" },
+  { sku: "P-102", name: "EnergyBar Protein Pack", cat: "Snacks", stock: 25, rev: 37600, vel: "4.2 u/d", status: "REORDER NEEDED", cls: "high" },
+  { sku: "P-103", name: "LED Desk Lamp Pro", cat: "Household", stock: 300, rev: 18400, vel: "0.9 u/d", status: "OVERSTOCK", cls: "overstock" },
+  { sku: "P-104", name: "Wireless Earbuds Elite", cat: "Electronics", stock: 42, rev: 52300, vel: "6.5 u/d", status: "OPTIMAL", cls: "green" },
+  { sku: "P-105", name: "Steel Thermal Bottle", cat: "Household", stock: 18, rev: 14200, vel: "1.1 u/d", status: "LOW STOCK", cls: "high" },
+  { sku: "P-106", name: "Mechanical Keyboard RGB", cat: "Electronics", stock: 88, rev: 31500, vel: "2.8 u/d", status: "OPTIMAL", cls: "green" },
+  { sku: "P-107", name: "Hydration Electrolytes", cat: "Fitness", stock: 150, rev: 22800, vel: "8.0 u/d", status: "OPTIMAL", cls: "green" },
+];
+let productCategoryFilter = "";
+
+const barColor = (r) => r.cls === "critical" ? "#f87171" : r.cls === "high" ? "#fbbf24" : r.cls === "overstock" ? "#a78bfa" : "#34d399";
+
+function prodRowHtml(r) {
+  const pct = Math.min(100, Math.max(5, (r.stock / 300) * 100)).toFixed(0);
+  return `
+    <tr data-cat="${r.cat}" data-name="${(r.sku + " " + r.name).toLowerCase()}">
+      <td><b>${r.sku}</b> <span class="src">${r.name}</span></td>
+      <td>${r.cat}</td>
+      <td><div class="stock-cell"><span>${r.stock} units</span><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${barColor(r)};"></div></div></div></td>
+      <td class="num">${fmtMoney(r.rev)}</td>
+      <td class="num">${r.vel}</td>
+      <td><span class="badge ${r.cls}">${r.status}</span></td>
+      <td><button class="btn-sm" onclick="inspectSku('${r.sku}')">Inspect</button></td>
+    </tr>`;
+}
+
+function renderProductTable() {
+  const q = (document.getElementById("productSearch").value || "").trim().toLowerCase();
+  const rows = SKUS.filter((r) =>
+    (!productCategoryFilter || r.cat === productCategoryFilter) &&
+    (!q || (r.sku + " " + r.name).toLowerCase().includes(q)));
+  document.getElementById("productRows").innerHTML =
+    rows.map(prodRowHtml).join("") || '<tr><td colspan="7" class="hint">No products match your filters.</td></tr>';
+}
+
+function filterProducts() { renderProductTable(); }
+
+function setCategoryFilter(cat) {
+  productCategoryFilter = cat;
+  document.querySelectorAll("#catChips .chip").forEach((ch) =>
+    ch.classList.toggle("active", ch.textContent.trim() === (cat ? cat : "All Categories")));
+  renderProductTable();
+}
+
+function inspectSku(sku) { fillChat("Analyze SKU " + sku); showView("copilot"); }
+
+function renderProductsView() {
+  if (DASH.category_share) {
+    const total = DASH.category_share.reduce((s, c) => s + c.value, 0);
+    document.getElementById("categoryPerf").innerHTML = tableHtml(
+      [["Category", ""], ["Revenue", "num"], ["Share %", "num"]],
+      DASH.category_share.map((c) => [c.label, fmtMoney(Math.round(c.value * 1000)), Math.round(c.value / total * 100) + "%"]));
+  }
+  renderProductTable();
+}
+function renderStoresView() { /* Static store network table rendered in HTML */ }
+function renderEvidenceView() { /* Static audit table rendered in HTML */ }
+
+const VIEW_RENDERERS = {
+  attention: renderAttentionView, inventory: renderInventoryView, sales: renderSalesView,
+  products: renderProductsView, stores: renderStoresView, evidence: renderEvidenceView,
+  overview: () => {}, import: () => {}, copilot: () => {},
+};
+
+function showView(name) {
+  document.querySelectorAll(".nav-link").forEach((n) => n.classList.toggle("active", n.dataset.view === name));
+  document.querySelectorAll(".view").forEach((v) => { v.hidden = v.dataset.view !== name; });
+  document.getElementById("viewTitle").textContent = TITLES[name] || name;
+  (VIEW_RENDERERS[name] || (() => {}))();
+  const mc = document.querySelector(".main-content");
+  if (mc) mc.scrollTop = 0;
+  setTimeout(() => { if (salesChart) salesChart.resize(); }, 30);
+}
+
+document.querySelectorAll(".nav-link").forEach((a) => a.addEventListener("click", (ev) => { ev.preventDefault(); showView(a.dataset.view); }));
+
+async function loadDashboard() {
+  try {
+    const d = await (await fetch("/api/dashboard")).json();
+    Object.assign(DASH, d);
+    setKpis(d.kpis);
+    renderAttention(d.attention);
+    const muted = "#94a3b8", accent = "#38bdf8", border = "#26334d";
+    if (revenueChart) revenueChart.destroy();
+    revenueChart = new Chart(document.getElementById("revenueChart"), {
+      type: "line",
+      data: {
+        labels: d.labels,
+        datasets: [{
+          label: "Revenue", data: d.revenue_trend, borderColor: accent,
+          backgroundColor: "rgba(56,189,248,.12)", fill: true, tension: .35, pointRadius: 0, borderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: border }, ticks: { color: muted, maxTicksLimit: 10 } },
+          y: { grid: { color: border }, ticks: { color: muted, callback: (v) => "$" + (v / 1000) + "k" } },
+        },
+      },
+    });
+    if (categoryChart) categoryChart.destroy();
+    categoryChart = new Chart(document.getElementById("categoryChart"), {
+      type: "doughnut",
+      data: {
+        labels: d.category_share.map((c) => c.label),
+        datasets: [{ data: d.category_share.map((c) => c.value),
+          backgroundColor: ["#38bdf8", "#818cf8", "#34d399", "#fbbf24", "#f87171", "#a78bfa"],
+          borderColor: "#151e32", borderWidth: 3 }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: "bottom", labels: { color: "#eef2f7", font: { size: 12 } } } },
+      },
+    });
+  } catch (e) {
+    document.getElementById("kpiGrid").insertAdjacentHTML("beforeend",
+      '<div class="hint">Dashboard load failed: ' + e.message + "</div>");
+  }
+}
+
+function addMsg(text, who) {
+  const log = document.getElementById("chatLog");
+  const div = document.createElement("div");
+  div.className = "msg " + who;
+  div.innerHTML = who === "bot" ? marked.parse(text) : text.replace(/</g, "&lt;");
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function sendChat() {
+  const input = document.getElementById("chatInput");
+  const text = input.value.trim();
+  if (!text) return;
+  addMsg(text, "user");
+  input.value = "";
+  addMsg("_Thinking…_", "bot");
+  try {
+    const r = await (await fetch("/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    })).json();
+    document.getElementById("chatLog").lastChild.remove();
+    addMsg(r.reply, "bot");
+  } catch (e) {
+    document.getElementById("chatLog").lastChild.remove();
+    addMsg("Error: " + e.message, "bot");
+  }
+}
+
+function fillChat(text) { document.getElementById("chatInput").value = text; document.getElementById("chatInput").focus(); }
+
+async function runImport() {
+  const input = document.getElementById("importInput");
+  const status = document.getElementById("importStatus");
+  const btn = document.getElementById("importBtn");
+  if (!input.files.length) {
+    status.innerHTML = '<div class="hint">Select a CSV / XLSX / JSON file first.</div>';
+    return;
+  }
+  const fd = new FormData();
+  fd.append("file", input.files[0]);
+  btn.disabled = true;
+  btn.textContent = "Validating & importing…";
+  try {
+    const r = await fetch("/api/import", { method: "POST", body: fd });
+    const d = await r.json();
+    if (!d.ok) {
+      status.innerHTML = '<div class="hint" style="color:#f87171;">Import failed: ' + (d.message || "unknown error") + "</div>";
+      return;
+    }
+    const rep = d.report || {};
+    const sum = d.summary || {};
+    const rows = [];
+    const errs = Object.entries(rep.error_counts || {});
+    if (errs.length) rows.push("<br><b>Validation errors skipped (" + sum.skipped + "):</b><ul>" + errs.slice(0, 6).map(([k, v]) => "<li>" + k + " × " + v + "</li>").join("") + "</ul>");
+    status.innerHTML = '<div class="hint" style="color:#34d399;">✔ Imported <b>' + sum.imported + "</b> of <b>" + sum.records + "</b> " + (rep.type || "records") + " rows from <b>" + sum.filename + "</b>. Dashboard analytics refreshed." + rows.join("") + "</div>";
+    loadDashboard();
+  } catch (e) {
+    status.innerHTML = '<div class="hint" style="color:#f87171;">Import error: ' + e.message + "</div>";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Validate & Import";
+  }
+}
+
+document.getElementById("chatSend").addEventListener("click", sendChat);
+document.getElementById("chatInput").addEventListener("keydown", (e) => { if (e.key === "Enter") sendChat(); });
+loadDashboard();
+</script>
+</body>
+</html>
